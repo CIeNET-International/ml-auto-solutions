@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run Aotc reproducibility benchmarks."""
+"""DAGs to run Aotc inference reproducibility benchmarks."""
 
 import datetime
 import os
@@ -21,7 +21,7 @@ from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.constants import Image
 from dags.map_reproducibility.internal_runs.dag_configs_inference import DAG_CONFIGS_INFERENCE_MEGA
-from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
+from dags.map_reproducibility.utils.internal_aotc_inference_workload import run_internal_aotc_inference_workload
 
 
 # Configuration parameters
@@ -60,32 +60,16 @@ for config_path, config_info in DAG_CONFIGS_INFERENCE_MEGA.items():
 
   # Create DAG for nightly build
   with models.DAG(
-      dag_id=f"new_internal_{config_name}",
+      dag_id=f"new_internal_inference_{config_name}",
       schedule=nightly_schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 17),
       catchup=False,
   ) as dag:
-    run_internal_aotc_workload(
+    run_internal_aotc_inference_workload(
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,
         timeout=timeout,
         image_version=NIGHTLY_IMAGE,
-    )
-
-  # Create DAG for stable release
-  with models.DAG(
-      dag_id=f"new_internal_stable_release_{config_name}",
-      schedule=release_schedule,
-      tags=DAG_TAGS,
-      start_date=datetime.datetime(2025, 4, 17),
-      catchup=False,
-  ) as dag:
-    run_internal_aotc_workload(
-        relative_config_yaml_path=config_path,
-        test_run=TEST_RUN,
-        backfill=BACKFILL,
-        timeout=timeout,
-        image_version=RELEASE_IMAGE,
     )
