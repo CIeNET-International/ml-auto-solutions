@@ -34,7 +34,7 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
+from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics, get_skip_steps_for_metrics_calculation
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext, get_job_gcs_bucket_folder
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
@@ -75,7 +75,7 @@ def run_internal_aotc_workload(
             ";".join(
                 git_cookie_authdaemon()
                 + clone_recipes_gob()
-                + (() if test_run else clone_internal_recipes_gob())
+                + clone_internal_recipes_gob()
                 + get_bq_writer_repo()
             ),
         ],
@@ -86,11 +86,7 @@ def run_internal_aotc_workload(
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     # Update paths now that we have the repo paths
-    internal_recipe_repo_root = (
-        "/home/airflow/gcs/dags/dags/map_reproducibility"
-    )
-    if not test_run:
-      internal_recipe_repo_root = get_internal_recipe_repo_path(tmpdir)
+    internal_recipe_repo_root = get_internal_recipe_repo_path(tmpdir)
     values_file_path = f"{internal_recipe_repo_root}/values/{values_name}.yaml"
     model_specific_values_file_path = (
         f"{internal_recipe_repo_root}/values/{config_yaml_name}_values.yaml"
@@ -145,12 +141,9 @@ def run_internal_aotc_workload(
                     cluster_name=cluster,
                     kueue_name=KUEUE_NAME,
                     additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
-                    test_run=test_run,
                 )
                 + internal_wait_for_jobs_cmds(timeout=container_timeout)
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_bucket_cmds_maxtext(tmpdir)
                 + cleanup_cmds()
             ),
         ],
@@ -160,12 +153,6 @@ def run_internal_aotc_workload(
 
     log_location = os.path.join(tmpdir, "tflog/metrics")
 
-    mfu, step_time = calculate_maxtext_metrics(
-        log_location, config.HYPERCOMPUTER
-    )
-
-    print(f"mfu: {mfu}")
-    print(f"step_time: {step_time}")
     comment = (
         "internal recipes regression tests"
         if not backfill
@@ -174,6 +161,16 @@ def run_internal_aotc_workload(
     is_db_test_run = False if backfill else test_run
     gcs_bucket = get_job_gcs_bucket_folder(job_name)
     print(f"GCS bucket is {gcs_bucket}")
+
+    # calculate mfu based on the config
+    skip_first_n_steps = get_skip_steps_for_metrics_calculation(config)
+    mfu, step_time = calculate_maxtext_metrics(
+        log_location,
+        config.HYPERCOMPUTER,
+        skip_first=skip_first_n_steps,
+    )
+    print(f"mfu: {mfu}")
+    print(f"step_time: {step_time}")
 
     write_run(
         model_id=config.HELM_NAME_MODEL_ID,
@@ -196,7 +193,7 @@ def run_internal_aotc_workload(
         topology="",
         comment=comment,
         is_test=is_db_test_run,
-        logs_profile=gcs_bucket,
+        gcs_metrics_bucket=gcs_bucket,
         workload_others=str(config),
         experiment_id=job_name,
     )
