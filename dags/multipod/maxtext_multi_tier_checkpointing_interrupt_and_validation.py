@@ -55,17 +55,14 @@ with models.DAG(
   }
   params = {
     "ramdisk": "/local",
-    "steps": 250,
-    "chk_period": 200,
-    "chk_local": 25,
-    "repl_backup_min": 5,
+    "steps": 50,
+    "chk_period": 20,
+    "chk_local": 10,
+    "repl_backup_min": 3,
     "ici_tensor_parall": 1,
     "use_replicator":True,
     "model_to_run":'llama2-7b'
   }
-
-  # Fix for RAMDISK XPK Comand
-  params["ramdisk_xpk"] = params['ramdisk'].split("/")[1]
 
   for mode, image in docker_images:
     for accelerator, slices in test_configs.items():

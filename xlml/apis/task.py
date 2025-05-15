@@ -581,13 +581,6 @@ class XpkTask(BaseTask):
           mtc_enabled=mtc_enabled,
           xpk_branch=xpk_branch,
       )
-      check_local_ramdisk = xpk.check_loacal_ramdisk(
-          workload_id=workload_id,
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-          ramdisk_dir=ramdisk_directory,
-      )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
       )(
@@ -595,6 +588,13 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           region=self.task_gcp_config.zone[:-2],
           cluster_name=self.task_test_config.cluster_name,
+      )
+      check_local_ramdisk = xpk.check_local_ramdisk(
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          region=self.task_gcp_config.zone[:-2],
+          cluster_name=self.task_test_config.cluster_name,
+          ramdisk_dir=ramdisk_directory,
       )
       run_interruption_workload = xpk.run_interruption_cmd.override(
           owner=self.task_test_config.task_owner
@@ -605,26 +605,14 @@ class XpkTask(BaseTask):
           cluster_name=self.task_test_config.cluster_name,
           workload_id=workload_id,
       )
-      run_interruption_workload_2 = xpk.run_interruption_cmd.override(
-          owner=self.task_test_config.task_owner
-      )(
-          task_id="run_interruption_cmd",
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-          workload_id=workload_id,
+      waiting_workload_resume = xpk.wait_for_workload_resume(
+        task_id = "wait_for_all_pods_running",
+        project_id=self.task_gcp_config.project_name,
+        region=self.task_gcp_config.zone[:-2],
+        cluster_name=self.task_test_config.cluster_name,
+        workload_id=workload_id,
       )
-
-      run_interruption_workload_3 = xpk.run_interruption_cmd.override(
-          owner=self.task_test_config.task_owner
-      )(
-          task_id="run_interruption_cmd",
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-          workload_id=workload_id,
-      )
-      check_local_ramdisk_2 = xpk.check_loacal_ramdisk(
+      check_local_ramdisk_2 = xpk.check_local_ramdisk(
           workload_id=workload_id,
           project_id=self.task_gcp_config.project_name,
           region=self.task_gcp_config.zone[:-2],
@@ -632,7 +620,7 @@ class XpkTask(BaseTask):
           ramdisk_dir=ramdisk_directory,
       )
 
-      run_workload >> wait_for_workload_start >> check_local_ramdisk >> run_interruption_workload >> run_interruption_workload_2 >> run_interruption_workload_3 >> check_local_ramdisk_2
+      run_workload >> wait_for_workload_start >> check_local_ramdisk >> run_interruption_workload >> waiting_workload_resume >> check_local_ramdisk_2
       return group
   def launch_workload_with_interruption(
       self,
