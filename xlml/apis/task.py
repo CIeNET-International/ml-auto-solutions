@@ -672,27 +672,8 @@ class XpkTask(BaseTask):
           cluster_name=self.task_test_config.cluster_name,
           workload_id=workload_id,
       )
-      run_interruption_workload_2 = xpk.run_interruption_cmd.override(
-          owner=self.task_test_config.task_owner
-      )(
-          task_id="run_interruption_cmd",
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-          workload_id=workload_id,
-      )
 
-      run_interruption_workload_3 = xpk.run_interruption_cmd.override(
-          owner=self.task_test_config.task_owner
-      )(
-          task_id="run_interruption_cmd",
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-          workload_id=workload_id,
-      )
-
-      run_workload >> wait_for_workload_start >> run_interruption_workload >> run_interruption_workload_2 >> run_interruption_workload_3
+      run_workload >> wait_for_workload_start >> run_interruption_workload
       return group
 
   def post_process(self, result_location: Optional[str] = None) -> DAGNode:
